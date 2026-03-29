@@ -17,9 +17,11 @@ function M.register(opts)
     local cc_editor_context = config.interactions.chat.editor_context
 
     -- Remove existing MCP editor context entries
-    for key, _ in pairs(cc_editor_context) do
-        if type(key) == "string" and key:sub(1, 4) == "mcp:" then
-            cc_editor_context[key] = nil
+    if cc_editor_context ~= nil then
+        for key, _ in pairs(cc_editor_context) do
+            if type(key) == "string" and key:sub(1, 4) == "mcp:" then
+                cc_editor_context[key] = nil
+            end
         end
     end
 
@@ -33,42 +35,44 @@ function M.register(opts)
         description = description:gsub("\n", " ")
         description = resource_name .. " (" .. description .. ")"
         local var_id = "mcp:" .. uri
-        cc_editor_context[var_id] = {
-            description = description,
-            hide_in_help_window = true,
-            callback = function(self)
-                -- Sync call - blocks UI (can't use async in editor context yet)
-                local result = hub:access_resource(server_name, uri, {
-                    caller = {
-                        type = "codecompanion",
-                        codecompanion = self,
-                        meta = {
-                            is_within_variable = true,
+        if cc_editor_context ~= nil then
+            cc_editor_context[var_id] = {
+                description = description,
+                hide_in_help_window = true,
+                callback = function(self)
+                    -- Sync call - blocks UI (can't use async in editor context yet)
+                    local result = hub:access_resource(server_name, uri, {
+                        caller = {
+                            type = "codecompanion",
+                            codecompanion = self,
+                            meta = {
+                                is_within_variable = true,
+                            },
                         },
-                    },
-                    parse_response = true,
-                })
+                        parse_response = true,
+                    })
 
-                if not result then
-                    return string.format("Accessing resource failed: %s", uri)
-                end
-
-                -- Handle images
-                if result.images and #result.images > 0 then
-                    for _, image in ipairs(result.images) do
-                        local id = string.format("mcp-%s", os.time())
-                        self.Chat:add_image_message({
-                            id = id,
-                            base64 = image.data,
-                            mimetype = image.mimeType,
-                        })
+                    if not result then
+                        return string.format("Accessing resource failed: %s", uri)
                     end
-                end
 
-                return result.text
-            end,
-        }
-        table.insert(added_resources, var_id)
+                    -- Handle images
+                    if result.images and #result.images > 0 then
+                        for _, image in ipairs(result.images) do
+                            local id = string.format("mcp-%s", os.time())
+                            self.Chat:add_image_message({
+                                id = id,
+                                base64 = image.data,
+                                mimetype = image.mimeType,
+                            })
+                        end
+                    end
+
+                    return result.text
+                end,
+            }
+            table.insert(added_resources, var_id)
+        end
     end
 
     -- Update syntax highlighting for editor context
